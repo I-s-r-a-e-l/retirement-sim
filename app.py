@@ -12,6 +12,8 @@ def home():
 @app.route('/simulate', methods=['POST'])
 def simulate():
     data = request.get_json()
+    print("Received JSON:", data)
+
 
     # Inputs
     age = data.get('age')
