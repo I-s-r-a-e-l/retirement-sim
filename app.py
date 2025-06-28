@@ -14,35 +14,48 @@ def simulate():
     data = request.get_json()
     print("Received JSON:", data)
 
+    # --- Required fields and their default fallbacks ---
+    required_fields = ['age', 'retirement_age', 'savings', 'return_rate', 'volatility',
+                       'contribution', 'risk_tolerance', 'inflation_rate', 'wealth_goal']
+    
+    missing_fields = [field for field in required_fields if data.get(field) is None]
+    if missing_fields:
+        return jsonify({
+            "error": f"Missing required fields: {', '.join(missing_fields)}"
+        }), 400
 
-    # Inputs
-    age = data.get('age')
-    retirement_age = data.get('retirement_age')
-    savings = data.get('savings')
-    return_rate = data.get('return_rate')
-    volatility = data.get('volatility')
-    contribution = data.get('contribution')
-    risk_tolerance = data.get('risk_tolerance')
-    inflation_rate = data.get('inflation_rate')
-    wealth_goal = data.get('wealth_goal')
+    # Extract inputs with fallback/defaults
+    age = data['age']
+    retirement_age = data['retirement_age']
+    savings = data['savings']
+    return_rate = data['return_rate']
+    volatility = data['volatility']
+    contribution = data['contribution']
+    risk_tolerance = data['risk_tolerance']
+    inflation_rate = data['inflation_rate']
+    wealth_goal = data['wealth_goal']
+    num_simulations = data.get('num_simulations', 10000)
 
-    years = retirement_age - age
-    num_simulations = 10000
-    adjusted_returns = []
+    # Validate numeric ranges
+    if retirement_age <= age:
+        return jsonify({"error": "retirement_age must be greater than age"}), 400
+    if not (0 <= return_rate <= 1) or not (0 <= volatility <= 1) or not (0 <= inflation_rate <= 1):
+        return jsonify({"error": "return_rate, volatility, and inflation_rate must be between 0 and 1"}), 400
 
-    # Modify return/volatility based on risk tolerance
+    # Adjust return/volatility based on risk
     if risk_tolerance == "conservative":
         return_rate -= 0.01
         volatility *= 0.75
     elif risk_tolerance == "aggressive":
         return_rate += 0.01
         volatility *= 1.25
-    # Adjust for inflation
-    real_return_rate = return_rate - inflation_rate
 
+    real_return_rate = return_rate - inflation_rate
+    years = retirement_age - age
     all_simulations = []
     wealth_over_time = {f"year_{i}": [] for i in range(years + 1)}
 
+    # --- Run Monte Carlo simulations ---
     for _ in range(num_simulations):
         balance = savings
         path = [balance]
@@ -57,6 +70,7 @@ def simulate():
 
         all_simulations.append(path)
 
+    # --- Percentiles per year ---
     final_values = [sim[-1] for sim in all_simulations]
     wealth_percentiles = {
         f"year_{i}": {
@@ -66,7 +80,7 @@ def simulate():
         } for i in range(years + 1)
     }
 
-    # Risk metrics
+    # --- Risk metrics ---
     sorted_final = np.sort(final_values)
     var_5 = round(np.percentile(sorted_final, 5), 2)
     cvar_5 = round(np.mean(sorted_final[:int(0.05 * num_simulations)]), 2)
