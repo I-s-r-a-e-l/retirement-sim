@@ -1,9 +1,29 @@
 # Import necessary libraries for web framework and numerical computations
 from flask import Flask, request, jsonify
 import numpy as np
+import os
+import logging
 
 # Initialize Flask application
 app = Flask(__name__)
+
+# Configure logging for production debugging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Configure environment-based settings
+FLASK_ENV = os.getenv('FLASK_ENV', 'production')
+app.debug = (FLASK_ENV == 'development')
+
+# Constants for validation
+MIN_AGE = 18
+MAX_AGE = 120
+MIN_SAVINGS = 0
+MAX_SAVINGS = 100_000_000
+MIN_CONTRIBUTION = 0
+MAX_CONTRIBUTION = 1_000_000
+MIN_ALLOCATION = 0.0
+MAX_ALLOCATION = 1.0
 
 def simulate_portfolio(age, retirement_age, savings, return_rate, volatility, contribution, 
                       goal=1_000_000, n_simulations=10000, inflation_rate=0.03, inflation_vol=0.02,
@@ -165,14 +185,92 @@ def simulate_portfolio(age, retirement_age, savings, return_rate, volatility, co
         }
     }
 
+# Health check endpoint for load balancers and monitoring
+@app.route('/health', methods=['GET'])
+def health_check():
+    """Health check endpoint for deployment monitoring."""
+    return jsonify({"status": "healthy", "service": "retirement-simulator"}), 200
+
+
+def validate_input(data):
+    """
+    Validate portfolio simulation input parameters.
+    Returns tuple: (is_valid: bool, error_message: str or None)
+    """
+    try:
+        # Required fields
+        required = ['age', 'retirement_age', 'savings', 'contribution']
+        for field in required:
+            if field not in data:
+                return False, f"Missing required field: {field}"
+        
+        age = float(data['age'])
+        retirement_age = float(data['retirement_age'])
+        savings = float(data['savings'])
+        contribution = float(data['contribution'])
+        
+        # Validate age parameters
+        if not (MIN_AGE <= age <= MAX_AGE):
+            return False, f"Age must be between {MIN_AGE} and {MAX_AGE}"
+        if not (age < retirement_age <= MAX_AGE):
+            return False, f"Retirement age must be greater than current age and <= {MAX_AGE}"
+        
+        # Validate financial parameters
+        if not (MIN_SAVINGS <= savings <= MAX_SAVINGS):
+            return False, f"Savings must be between {MIN_SAVINGS} and {MAX_SAVINGS}"
+        if not (MIN_CONTRIBUTION <= contribution <= MAX_CONTRIBUTION):
+            return False, f"Contribution must be between {MIN_CONTRIBUTION} and {MAX_CONTRIBUTION}"
+        
+        # Validate optional allocations if provided
+        if 'stock_allocation' in data or 'bond_allocation' in data or 'cash_allocation' in data:
+            stock_alloc = float(data.get('stock_allocation', 0.6))
+            bond_alloc = float(data.get('bond_allocation', 0.3))
+            cash_alloc = float(data.get('cash_allocation', 0.1))
+            
+            for alloc in [stock_alloc, bond_alloc, cash_alloc]:
+                if not (MIN_ALLOCATION <= alloc <= MAX_ALLOCATION):
+                    return False, "Allocations must be between 0 and 1"
+            
+            total_allocation = stock_alloc + bond_alloc + cash_alloc
+            if not (0.99 <= total_allocation <= 1.01):  # Allow 1% tolerance for floating-point
+                return False, f"Allocations must sum to 1.0 (current sum: {total_allocation:.2f})"
+        
+        return True, None
+    
+    except (ValueError, TypeError) as e:
+        return False, f"Invalid parameter type: {str(e)}"
+
+
 # API endpoint to handle portfolio simulation requests
 @app.route('/simulate', methods=['POST'])
 def simulate():
-    # Parse JSON data from the POST request
-    data = request.get_json()
-
-    # Run simulation with user-provided parameters (use defaults for optional fields)
-    result = simulate_portfolio(
+    """Portfolio simulation endpoint.
+    
+    POST body (JSON):
+    - age (required): Current age in years
+    - retirement_age (required): Target retirement age
+    - savings (required): Current savings in dollars
+    - contribution (required): Annual contribution in dollars
+    - All other parameters are optional with sensible defaults
+    
+    Returns: JSON with simulation statistics
+    """
+    try:
+        # Parse JSON request
+        if not request.is_json:
+            logger.warning("Non-JSON request received")
+            return jsonify({"error": "Content-Type must be application/json"}), 400
+        
+        data = request.get_json()
+        
+        # Validate input
+        is_valid, error_msg = validate_input(data)
+        if not is_valid:
+            logger.warning(f"Invalid input: {error_msg}")
+            return jsonify({"error": error_msg}), 400
+        
+        # Run simulation with user-provided parameters (use defaults for optional fields)
+        result = simulate_portfolio(
         age=data['age'],
         retirement_age=data['retirement_age'],
         savings=data['savings'],
@@ -198,9 +296,31 @@ def simulate():
         retirement_duration=data.get('retirement_duration', 30)
     )
 
-    # Return simulation results as JSON response
-    return jsonify(result)
+        # Return simulation results as JSON response
+        logger.info(f"Simulation completed for age {data['age']} -> {data['retirement_age']}")
+        return jsonify(result), 200
+    
+    except Exception as e:
+        # Catch unexpected errors
+        logger.error(f"Simulation error: {str(e)}", exc_info=True)
+        return jsonify({"error": "Internal server error"}), 500
 
-# Run the Flask application in debug mode when executed directly
+# Health check endpoint
+@app.errorhandler(404)
+def not_found(error):
+    """Handle 404 errors."""
+    return jsonify({"error": "Endpoint not found"}), 404
+
+
+@app.errorhandler(405)
+def method_not_allowed(error):
+    """Handle 405 errors."""
+    return jsonify({"error": "Method not allowed"}), 405
+
+
+# Run the Flask application with environment-based configuration
 if __name__ == '__main__':
-    app.run(debug=True)
+    port = int(os.getenv('PORT', 5000))
+    host = os.getenv('HOST', '127.0.0.1')
+    logger.info(f"Starting retirement simulator on {host}:{port} (ENV: {FLASK_ENV})")
+    app.run(host=host, port=port, debug=app.debug)
