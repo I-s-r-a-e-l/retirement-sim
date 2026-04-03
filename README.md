@@ -1,333 +1,211 @@
 # Retirement Portfolio Simulator
 
-A sophisticated Monte Carlo simulation tool for retirement planning, built with Flask and NumPy. Uses realistic financial modeling with lognormal returns, multi-asset allocation, and dynamic contribution growth.
+A Monte Carlo retirement model that projects how your savings can grow over time. It uses random market scenarios to estimate outcomes, risk levels, and the chance you hit your goal.
 
-## Features
+## What It Does
 
-- **Advanced Monte Carlo Method**: 10,000+ simulations per request
-- **Lognormal Returns**: Realistic multiplicative market growth modeling
-- **Multi-Asset Portfolio**: Stocks, bonds, and cash with configurable correlations
-- **Dynamic Contributions**: Annual salary growth during accumulation phase
-- **Retirement Phase**: Configurable withdrawal strategies (4% rule by default)
-- **Risk Metrics**: VaR, CVaR, max drawdown, survival probability
-- **Production-Ready**: Input validation, error handling, health checks, logging
+- Simulates retirement savings with 10,000+ scenarios
+- Handles stocks/bonds/cash allocation
+- Includes annual contributions and retirement withdrawals
+- Gives stats: median outcome, 10th/90th percentiles, VaR, survival chance
 
-## Installation
+## Quick Start
 
-### Prerequisites
-- Python 3.9+
-- pip or conda
-
-### Setup
-
-1. **Clone and navigate to the project:**
+1. Install dependencies:
 ```bash
-cd retirement-sim
+pip install flask==3.0.3 numpy==1.24.3
 ```
-
-2. **Create virtual environment:**
+2. Run the app:
 ```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+python app.py
 ```
+3. Open request tool (curl or Postman) and send to `http://127.0.0.1:5000/simulate`
 
-3. **Install dependencies:**
-```bash
-pip install -r requirements.txt
-```
-
-## Usage
-
-### Running the Server (Development)
-
-```bash
-FLASK_ENV=development python app.py
-```
-
-Server runs on `http://127.0.0.1:5000`
-
-### Running the Server (Production)
-
-```bash
-FLASK_ENV=production gunicorn -w 4 -b 0.0.0.0:8000 app:app
-```
-
-## API Endpoints
-
-### POST /simulate
-
-**Description**: Run a Monte Carlo retirement portfolio simulation
-
-**Request Body (JSON):**
-
-```json
-{
-  "age": 30,
-  "retirement_age": 65,
-  "savings": 100000,
-  "contribution": 10000,
-  "goal": 1000000,
-  "n_simulations": 10000,
-  "inflation_rate": 0.03,
-  "inflation_vol": 0.02,
-  "stock_allocation": 0.6,
-  "bond_allocation": 0.3,
-  "cash_allocation": 0.1,
-  "stock_return": 0.08,
-  "stock_vol": 0.15,
-  "bond_return": 0.04,
-  "bond_vol": 0.08,
-  "cash_return": 0.02,
-  "cash_vol": 0.01,
-  "correlation_stock_bond": 0.3,
-  "contribution_growth_rate": 0.03,
-  "withdrawal_rate": 0.04,
-  "retirement_duration": 30
-}
-```
-
-**Required Fields:**
-- `age` (int): Current age, 18-120
-- `retirement_age` (int): Target retirement age
-- `savings` (float): Current savings in dollars, 0-100M
-- `contribution` (float): Annual contribution in dollars, 0-1M
-
-**Optional Fields (defaults shown):**
-- `goal` (float): Retirement savings target [default: 1,000,000]
-- `n_simulations` (int): Number of simulations [default: 10,000]
-- `inflation_rate` (float): Expected inflation [default: 0.03]
-- `inflation_vol` (float): Inflation volatility [default: 0.02]
-- `stock_allocation` (float): Fraction in stocks [default: 0.6]
-- `bond_allocation` (float): Fraction in bonds [default: 0.3]
-- `cash_allocation` (float): Fraction in cash [default: 0.1]
-- `stock_return` (float): Expected stock return [default: 0.08]
-- `stock_vol` (float): Stock volatility [default: 0.15]
-- `bond_return` (float): Expected bond return [default: 0.04]
-- `bond_vol` (float): Bond volatility [default: 0.08]
-- `cash_return` (float): Expected cash return [default: 0.02]
-- `cash_vol` (float): Cash volatility [default: 0.01]
-- `correlation_stock_bond` (float): Stock-bond correlation [default: 0.3]
-- `contribution_growth_rate` (float): Annual contribution growth [default: 0.03]
-- `withdrawal_rate` (float): Annual withdrawal rate in retirement [default: 0.04]
-- `retirement_duration` (int): Years to simulate post-retirement [default: 30]
-
-**Response (200 OK):**
-
-```json
-{
-  "summary": {
-    "median": 2500000,
-    "percentile_10": 1200000,
-    "percentile_90": 4500000,
-    "var_5": 800000,
-    "cvar_5": 650000,
-    "probability_reaching_goal": 0.92,
-    "survival_probability": 0.88,
-    "average_max_drawdown": 0.35,
-    "volatility": 750000
-  }
-}
-```
-
-**Response Fields:**
-- `median`: Median final wealth at end of retirement
-- `percentile_10` / `percentile_90`: 10th and 90th percentile outcomes
-- `var_5`: Value at Risk (5th percentile, worst 5% of scenarios)
-- `cvar_5`: Conditional VaR (average loss in worst 5% of scenarios)
-- `probability_reaching_goal`: Percentage of simulations reaching target goal
-- `survival_probability`: Percentage of simulations with positive wealth post-retirement
-- `average_max_drawdown`: Average maximum drawdown across all simulations
-- `volatility`: Standard deviation of final wealth outcomes
-
-**Error Responses:**
-
-```json
-// 400 Bad Request - Invalid parameters
-{
-  "error": "Age must be between 18 and 120"
-}
-
-// 500 Internal Server Error
-{
-  "error": "Internal server error"
-}
-```
-
-### GET /health
-
-**Description**: Health check endpoint for monitoring and load balancers
-
-**Response (200 OK):**
-```json
-{
-  "status": "healthy",
-  "service": "retirement-simulator"
-}
-```
-
-## Example Usage
-
-### Using cURL
+## Simple Example
 
 ```bash
 curl -X POST http://127.0.0.1:5000/simulate \
   -H "Content-Type: application/json" \
   -d '{
-    "age": 35,
+    "age": 20,
     "retirement_age": 65,
-    "savings": 250000,
-    "contribution": 15000,
-    "stock_allocation": 0.7,
-    "bond_allocation": 0.2,
-    "cash_allocation": 0.1
+    "savings": 5000,
+    "contribution": 3000
   }'
 ```
 
-### Using Python
+### Key output fields
+- `median`: typical final savings
+- `percentile_10`: conservative end result
+- `percentile_90`: strong outcome
+- `probability_reaching_goal`: chance to meet target
+- `survival_probability`: chance money lasts through retirement
+
+## Optional Advanced Configuration
+
+You can include extra fields in request JSON:
+- `stock_allocation`, `bond_allocation`, `cash_allocation`
+- `contribution_growth_rate`, `withdrawal_rate`
+- `n_simulations` (bigger makes it more accurate)
+
+## Note
+
+This is a learning tool, not investment advice. Real investing should include professional guidance.
+
+---
+
+Advanced users: full API and advanced modeling details are in the code comments and in more detailed sections of this file.
+    "percentile_90": 3200000,
+    "var_5": 450000,
+    "probability_reaching_goal": 0.87,
+    "survival_probability": 0.92,
+    "average_max_drawdown": 0.28
+  }
+}
+```
+
+### Python Example
 
 ```python
 import requests
-import json
 
-url = "http://127.0.0.1:5000/simulate"
-payload = {
-    "age": 35,
+# Your retirement plan
+data = {
+    "age": 20,
     "retirement_age": 65,
-    "savings": 250000,
-    "contribution": 15000,
-    "n_simulations": 5000
+    "savings": 5000,
+    "contribution": 3000,
+    "stock_allocation": 0.8,  # 80% stocks (aggressive)
+    "bond_allocation": 0.2    # 20% bonds
 }
 
-response = requests.post(url, json=payload)
+response = requests.post("http://127.0.0.1:5000/simulate", json=data)
 result = response.json()
-print(f"Median portfolio at retirement: ${result['summary']['median']:,.0f}")
-print(f"Success probability: {result['summary']['probability_reaching_goal']*100:.1f}%")
+
+print(f"Median savings at retirement: ${result['summary']['median']:,.0f}")
+print(f"Chance of reaching $1M: {result['summary']['probability_reaching_goal']*100:.0f}%")
 ```
 
-### Using JavaScript/Node.js
+## API Parameters
 
-```javascript
-const payload = {
-  age: 35,
-  retirement_age: 65,
-  savings: 250000,
-  contribution: 15000
-};
+### Required
+- `age` - Your current age
+- `retirement_age` - When you want to retire
+- `savings` - Money you have saved now
+- `contribution` - How much you save per year
 
-fetch('http://127.0.0.1:5000/simulate', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify(payload)
-})
-  .then(r => r.json())
-  .then(data => {
-    console.log(`Median: $${data.summary.median.toLocaleString()}`);
-    console.log(`Success rate: ${(data.summary.probability_reaching_goal * 100).toFixed(1)}%`);
-  });
+### Optional (Advanced)
+- `stock_allocation` - % in stocks (0.0 to 1.0) [default: 0.6]
+- `bond_allocation` - % in bonds [default: 0.3]
+- `cash_allocation` - % in cash [default: 0.1]
+- `contribution_growth_rate` - Annual salary increase [default: 0.03]
+- `withdrawal_rate` - % withdrawn in retirement [default: 0.04]
+- `n_simulations` - Number of scenarios to test [default: 10,000]
+
+## What Makes This Cool
+
+### 🧮 **Monte Carlo Simulation**
+Instead of guessing "you'll have X dollars," it runs thousands of "what if" scenarios with different market conditions, giving you a probability distribution of outcomes.
+
+### 📊 **Real Market Math**
+- **Lognormal returns**: Markets grow multiplicatively (not additively), so we use lognormal distributions that match real stock behavior
+- **Correlations**: Stocks and bonds don't move independently - we model their relationships
+- **Inflation**: Everything adjusts for rising prices over time
+
+### 🎯 **Advanced Risk Analysis**
+- **VaR (Value at Risk)**: "In the worst 5% of scenarios, you might have this much" - industry-standard risk metric
+- **Survival Probability**: Chance your money lasts through retirement
+- **Max Drawdown**: Biggest drop you'd experience
+
+### 🔄 **Dynamic Planning**
+- Contributions grow with your salary increases
+- Withdrawals in retirement follow the proven "4% rule"
+- Multi-asset portfolios with realistic return assumptions
+- Full retirement phase simulation (not just saving)
+
+### ⚡ **Performance & Scale**
+- **10,000+ simulations** per request for statistical accuracy
+- **Fast NumPy computations** handle complex calculations quickly
+- **Production-ready API** with proper error handling and validation
+
+## Understanding Results
+
+| Metric | What It Means |
+|--------|---------------|
+| `median` | Middle scenario - 50% chance you'll do better, 50% worse |
+| `percentile_10` | Bad scenario - only 10% chance of doing worse |
+| `percentile_90` | Great scenario - only 10% chance of doing better |
+| `probability_reaching_goal` | % chance you hit your retirement target |
+| `survival_probability` | % chance your money lasts 30+ years in retirement |
+
+## Project Structure
+
+```
+retirement-sim/
+├── app.py              # Main Flask app with simulation logic
+├── requirements.txt    # Python dependencies
+├── README.md          # This file
+└── .gitignore         # Files to ignore in git
 ```
 
-## Configuration
+## Technical Details
 
-Set environment variables to customize behavior:
+### Asset Assumptions (Based on Historical Data)
+- **Stocks**: 8% average annual return, 15% volatility (S&P 500 historical averages)
+- **Bonds**: 4% average annual return, 8% volatility (US Treasury bonds)
+- **Cash**: 2% average annual return, 1% volatility (money market funds)
+- **Correlation**: Stocks/bonds correlation coefficient of 0.3 (realistic diversification)
 
-```bash
-export FLASK_ENV=production          # development or production
-export HOST=0.0.0.0                  # Bind address
-export PORT=8000                     # Server port
+### Simulation Engine
+- **NumPy arrays**: Vectorized operations for performance
+- **Multivariate normal sampling**: Correlated returns using Cholesky decomposition
+- **Geometric returns**: `wealth *= exp(log_return)` for multiplicative growth
+- **Stochastic inflation**: Independent normal distribution sampling
+- **Memory efficient**: No Python loops in hot path, pure NumPy operations
+
+### API Architecture
+- **Flask REST API**: Clean endpoints with JSON request/response
+- **Input validation**: Type checking, bounds validation, allocation constraints
+- **Error handling**: Proper HTTP status codes (400, 500) with descriptive messages
+- **Logging**: Structured logging for debugging and monitoring
+- **Health checks**: `/health` endpoint for deployment monitoring
+
+### Mathematical Models
+
+**Lognormal Returns Formula:**
+```
+log_return = Normal(μ - σ²/2, σ)  # Drift-adjusted for lognormal
+wealth = wealth * exp(log_return)  # Multiplicative growth
 ```
 
-## Model Assumptions
-
-### Asset Returns
-- **Stocks**: 8% annual return, 15% volatility
-- **Bonds**: 4% annual return, 8% volatility
-- **Cash**: 2% annual return, 1% volatility
-- **Correlation**: Stocks and bonds: 0.3, cash uncorrelated
-
-### Distribution
-- Returns follow a **lognormal distribution** (geometric Brownian motion)
-- Inflation is independently sampled with normal distribution
-
-### Contribution & Withdrawal
-- Contributions grow at 3% annually (matching salary growth)
-- Retirement withdrawals use 4% rule (1/life expectancy at retirement)
-
-## Limitations & Important Notes
-
-This is a **probabilistic planning tool**, not a forecast:
-- Assumes historical return distributions continue
-- Ignores taxes, fees, and market regime changes
-- Uses simplified 3-asset model (real portfolios are more complex)
-- Does not account for lifestyle changes or emergency spending
-- Assumes rebalancing and no behavioral bias
-
-**For important financial decisions, consult a professional advisor.**
-
-## Deployment
-
-### Docker
-
-```dockerfile
-FROM python:3.9
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-COPY app.py .
-ENV FLASK_ENV=production
-CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:8000", "app:app"]
+**Multivariate Correlations:**
+```
+Σ = covariance_matrix  # From volatilities and correlations
+returns = multivariate_normal(means, Σ)  # Correlated sampling
 ```
 
-### Heroku
-
-```bash
-git push heroku main
+**Risk Metrics:**
+```
+VaR_5 = percentile(wealths, 5)  # 5th percentile
+CVaR_5 = mean(wealths[wealths ≤ VaR_5])  # Conditional tail expectation
+Survival = mean(wealths > 0)  # Probability of positive wealth
 ```
 
-### AWS/Azure/GCP
+## Important Notes
 
-Deploy with gunicorn:
-```bash
-gunicorn -w 4 -b 0.0.0.0:8000 app:app
-```
+⚠️ **This is for learning/planning only** - Not financial advice!
+- Assumes historical market patterns continue
+- Doesn't include taxes, fees, or market crashes
+- Real retirement planning needs professional help
 
-## Development
+## Future Ideas
 
-### Running Tests
+- Web interface (React/Vue)
+- More asset classes (real estate, crypto)
+- Tax calculations
+- Mobile app
+- Historical market data integration
 
-```bash
-# (Add pytest-based tests in future)
-python -m pytest tests/
-```
+---
 
-### Code Style
-
-```bash
-pip install black flake8
-black app.py
-flake8 app.py
-```
-
-## Troubleshooting
-
-| Issue | Solution |
-|-------|----------|
-| `ModuleNotFoundError: No module named 'flask'` | Run `pip install -r requirements.txt` |
-| Port 5000 already in use | Change port: `PORT=8001 python app.py` |
-| `debug=True` warnings in production | Set `FLASK_ENV=production` |
-| Out of memory with large n_simulations | Reduce to 5000 or run on larger instance |
-
-## License
-
-MIT License - Feel free to use and modify.
-
-## Changelog
-
-- **v2.0** (Apr 2026): Enhanced Monte Carlo with lognormal returns, multi-asset allocation, dynamic contributions, retirement phase modeling
-- **v1.0** (Jun 2025): Original simple normal-distribution simulator
-
-## Contributing
-
-Pull requests welcome. Please:
-1. Add tests for new features
-2. Update README with usage examples
-3. Follow PEP 8 style guide
+Built by Israel Adeboga - Exploring Python, finance, and probabilistic modeling!
